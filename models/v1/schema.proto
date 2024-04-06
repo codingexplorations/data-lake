@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package models.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "./models/v1;models_v1";
+
+message Object {
+  string file_name = 1 [(buf.validate.field).required = true];
+  string file_location = 2 [(buf.validate.field).required = true];
+  string content_type = 3 [(buf.validate.field).required = true];
+  int32 content_size = 4 [(buf.validate.field).int32.gt = 0,
+                         (buf.validate.field).int32.lte = 1048576]; // int32 4,294,967,295 or int64 9,223,372,036,854,775,807
+}
+
+message Log {
+  enum LogLevel {
+    NONE = 0;
+    DEBUG = 1;
+    INFO = 2;
+    WARNING = 3;
+    ERROR = 4;
+  }
+
+  int64 timestamp = 1;
+  LogLevel level = 2;
+  string file = 3;
+  int32 line = 4;
+  string message = 5;
+}

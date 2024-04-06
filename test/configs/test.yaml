@@ -1,0 +1,5 @@
+AWS_BUCKET_NAME: test-ingest-bucket
+AWS_INGEST_QUEUE_NAME: test-ingest-queue
+AWS_LOGGER_QUEUE_NAME: test-logger-queue
+LOGGER_TYPE: CONSOLE
+LOGGER_LEVEL: DEBUG

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566"
+    volumes:
+      - "./localstack/init:/etc/localstack/init"
+    environment:
+      - "SERVICES=s3,sqs"
+      - "AWS_DEFAULT_REGION=us-east-1"
+      - "DEBUG=1"
+      - "DISABLE_EVENTS=1"
+      - "DISABLE_CORS_CHECKS=1"
+      - "LOCALSTACK_HOST=localhost"
+      - "HOSTNAME=localhost"
+      - "TEST_INGEST_BUCKET_NAME=test-ingest-bucket"
+      - "TEST_INGEST_QUEUE_NAME=test-ingest-queue"
+    healthcheck:
+      test: 'curl -s localhost:4566/_localstack/init | grep -q -F ''"stage": "READY", "name": "setup.sh", "state": "SUCCESSFUL"'''
+      interval: 2s
+      timeout: 2s
+      retries: 50
+
+  integration-test-service:
+    image: public.ecr.aws/docker/library/golang:1.22-alpine
+    restart: "no"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    links:
+      - "localstack:s3.localhost.localstack.cloud"
+      - "localstack:test-ingest-bucket.s3.localhost.localstack.cloud"
+      - "localstack:bad-bucket.s3.localhost.localstack.cloud" # needed for bad bucket tests
+    volumes:
+      - "./aws:/root/.aws"
+      - "../../:/app"
+      - "/app/.git"
+      - "/app/.idea"
+    working_dir: "/app"
+    environment:
+      - "AWS_ENDPOINT_URL=http://localstack:4566/"
+      - "AWS_ENDPOINT_URL_S3=http://s3.localhost.localstack.cloud:4566"
+      - "CONFIG_FILE=/app/test/configs/test.yaml"
+    command: >
+      sh -c "go test -v -coverprofile=./target/coverage/coverage-int.out.tmp ./pkg/aws ./models/v1"

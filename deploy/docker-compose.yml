@@ -1,0 +1,83 @@
+services:
+
+  dnsmasq:
+    image: strm/dnsmasq
+    container_name: dns
+    restart: on-failure
+    volumes:
+      - ./mounts/dnsmasq/dns.conf:/etc/dnsmasq.conf
+    ports:
+      - "53/udp"
+    cap_add:
+      - NET_ADMIN
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'if [ -z "$(netstat -nltu |grep \:53)" ]; then exit 1;else exit 0;fi'
+      interval: 2s
+      timeout: 2s
+      retries: 20
+    networks:
+      default:
+        ipv4_address: 172.16.0.253
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    restart: on-failure
+    ports:
+      - "127.0.0.1:${STACK_LOCALSTACK_PORT}:${STACK_LOCALSTACK_PORT}"
+    volumes:
+      - ./mounts/localstack/init:/etc/localstack/init
+    env_file:
+      - .env
+    environment:
+      - "SERVICES=s3,sqs"
+      - "DEBUG=1"
+      - "DISABLE_EVENTS=1"
+      - "DISABLE_CORS_CHECKS=1"
+      - "LOCALSTACK_HOST=localhost"
+      - "HOSTNAME=localhost"
+      - "PROVIDER_OVERRIDE_S3=v3"
+    depends_on:
+      dnsmasq:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 172.16.0.10 # needed S3 access within network via DNS
+    dns:
+      - 172.16.0.253
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'curl -s localhost:4566/_localstack/init | grep -q -F ''"stage": "READY", "name": "setup.sh", "state": "SUCCESSFUL"'''
+      interval: 2s
+      timeout: 2s
+      retries: 50
+
+  data-lake:
+    image: data-lake:latest
+    volumes:
+      - ./mounts/data:/app/data
+    env_file:
+      - .env
+    depends_on:
+      localstack:
+        condition: service_healthy
+    dns:
+      - 172.16.0.253
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "curl -s localhost:8000/healthz -w '%{http_code}' -o /dev/null | grep -qF '200'"
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+networks:
+  default:
+    name: data-lake-network
+    ipam:
+      config:
+        - subnet: 172.16.0.0/24
+          gateway: 172.16.0.1
