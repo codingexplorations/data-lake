@@ -69,7 +69,7 @@ func TestFolderIngest_ProcessFolder_Failure(t *testing.T) {
 	processedObject, err := processor.ProcessFolder(folder)
 
 	assert.Error(t, err)
-	assert.Equal(t, "open /Users/benjaminparrish/Development/Personal/data-lake/pkg/ingest/../../test/files/missing: no such file or directory", err.Error())
+	assert.Equal(t, "open /Users/benjaminparrish/Development/CodingExplorations/data-lake/pkg/ingest/../../test/files/missing: no such file or directory", err.Error())
 	assert.Nil(t, processedObject)
 }
 
